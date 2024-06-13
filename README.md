@@ -3,8 +3,8 @@
 <h3>In this project, we aim to develop a timetable scheduling application for the first-year Computer Science students (1CS) for Semester 2. The problem is approached as a Constraint Satisfaction Problem (CSP), where we will formulate the problem, define variable domains, and implement constraints. The solution will be generated using backtracking algorithms, enhanced by the AC3 algorithm for domain reduction and other heuristics such as Minimum Remaining Values (MRV), Most Constrained Variable (MCV), and Least Constraining Value (LCV).
 </h3>
 <br> 
-<h4>
-  git clone <repo URL > <br>
+<h4> Running the Code <br>
+  git clone [<repo URL >](https://github.com/whoamif/TimeScheduling.git) <br>
   python3.9 app.py "for the first"  <br>
   python3.9 app2.py "for the first"  <br>
 </h4>
