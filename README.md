@@ -4,9 +4,9 @@
 </h3>
 <br> 
 <h4>
-  git clone <repo URL >
-  python3.9 app.py "for the first" 
-  python3.9 app2.py "for the first" 
+  git clone <repo URL > <br>
+  python3.9 app.py "for the first"  <br>
+  python3.9 app2.py "for the first"  <br>
 </h4>
 <br>
 <h4>first solution </h4> <br>
