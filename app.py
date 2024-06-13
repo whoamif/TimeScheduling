@@ -1,63 +1,111 @@
-from constraint import Problem, FunctionConstraint, AllDifferentConstraint
+from constraint import Problem, AllDifferentConstraint
+import pandas as pd
 
-# Define time slots
-time_slots = ['S1', 'S2', 'S3', 'S4', 'S5', 'M1', 'M2', 'M3', 'M4', 'M5', 
-              'T1', 'T2', 'T3', 'W1', 'W2', 'W3', 'W4', 'W5', 'TH1', 'TH2', 
-              'TH3', 'TH4', 'TH5']
+def generate_timetable(courses, teachers, days_per_course):
+    # Initialize the problem
+    problem = Problem()
 
-# Define variables and their domains
-variables = {
-    'Sécurité_lecture': time_slots,
-    'Sécurité_td': time_slots,
-    'Méthodes_formelles_lecture': time_slots,
-    'Méthodes_formelles_td': time_slots,
-    'Analyse_numérique_lecture': time_slots,
-    'Analyse_numérique_td': time_slots,
-    'Entrepreneuriat_lecture': time_slots,
-    'Recherche_opérationnelle_2_lecture': time_slots,
-    'Recherche_opérationnelle_2_td': time_slots,
-    'Distributed_Architecture_Intensive_Computing_lecture': time_slots,
-    'Distributed_Architecture_Intensive_Computing_td': time_slots,
-    'Réseaux_2_lecture': time_slots,
-    'Réseaux_2_td': time_slots,
-    'Réseaux_2_tp': time_slots,
-    'Artificial_Intelligence_lecture': time_slots,
-    'Artificial_Intelligence_td': time_slots,
-    'Artificial_Intelligence_tp': time_slots
+    # Define time slots
+    days = ["Sun", "Mon", "Tue", "Wed", "Thu"]
+    slots_per_day = {
+        "Sun": 5, "Mon": 5, "Tue": 3, "Wed": 5, "Thu": 5
+    }
+    time_slots = []
+    for day in days:
+        for slot in range(1, slots_per_day[day] + 1):
+            time_slots.append(f"{day}_{slot}")
+
+    # Define variables and domains
+    for course in courses:
+        allowed_slots = [slot for slot in time_slots if slot.split('_')[0] in days_per_course[course]]
+        if "TP" in teachers[course]:
+            problem.addVariables([f"{course}_lecture", f"{course}_TD", f"{course}_TP"], allowed_slots)
+        else:
+            problem.addVariables([f"{course}_lecture", f"{course}_TD"], allowed_slots)
+
+    # Hard Constraints
+
+    # Four or five successive slots of work are not accepted (max three successive slots)
+    def max_three_successive(*args):
+        slots = sorted([int(slot.split('_')[1]) for slot in args])
+        return all(abs(slots[i] - slots[i-1]) <= 1 for i in range(1, len(slots))) and len(slots) <= 3
+
+    for course in courses:
+        if "TP" in teachers[course]:
+            problem.addConstraint(max_three_successive, [f"{course}_lecture", f"{course}_TD", f"{course}_TP"])
+        else:
+            problem.addConstraint(max_three_successive, [f"{course}_lecture", f"{course}_TD"])
+
+    # Lectures of the same course should not be scheduled in the same slot
+    for course in courses:
+        if "TP" in teachers[course]:
+            problem.addConstraint(lambda lecture, td, tp: lecture != td and lecture != tp and td != tp, (f"{course}_lecture", f"{course}_TD", f"{course}_TP"))
+        else:
+            problem.addConstraint(lambda lecture, td: lecture != td, (f"{course}_lecture", f"{course}_TD"))
+
+    # Different courses for the same group must have different slot allocations
+    for i in range(len(courses)):
+        for j in range(i + 1, len(courses)):
+            problem.addConstraint(AllDifferentConstraint(), [f"{courses[i]}_lecture", f"{courses[j]}_lecture"])
+            problem.addConstraint(AllDifferentConstraint(), [f"{courses[i]}_TD", f"{courses[j]}_TD"])
+            if "TP" in teachers[courses[i]] and "TP" in teachers[courses[j]]:
+                problem.addConstraint(AllDifferentConstraint(), [f"{courses[i]}_TP", f"{courses[j]}_TP"])
+
+    # Soft Constraints
+
+    # Each teacher should have a maximum of two days of work
+    def max_two_days(*args):
+        days = [slot.split('_')[0] for slot in args]
+        return len(set(days)) <= 2
+
+    # Add the max_two_days constraint for each teacher's courses
+    for course, teacher_list in teachers.items():
+        if "TP" in teacher_list:
+            problem.addConstraint(max_two_days, [f"{course}_lecture", f"{course}_TD", f"{course}_TP"])
+        else:
+            problem.addConstraint(max_two_days, [f"{course}_lecture", f"{course}_TD"])
+
+    # Solve the problem
+    solution = problem.getSolution()
+    return solution
+
+# Default courses and predefined teacher names
+default_courses = [
+    "Securite", "MethodesFormelles", "NumericalAnalysis", "Entrepreneuriat", 
+    "RechercheOperationnelle2", "DistributedArchitecture", "Reseaux2", "ArtificialIntelligence"
+]
+default_teacher_names = {
+    "Securite": ["Dr. Smith"], 
+    "MethodesFormelles": ["Dr. Johnson"], 
+    "NumericalAnalysis": ["Prof. Lee"], 
+    "Entrepreneuriat": ["Dr. Brown"], 
+    "RechercheOperationnelle2": ["Dr. Garcia"], 
+    "DistributedArchitecture": ["Dr. Martinez"], 
+    "Reseaux2": ["Dr. Robinson", "Dr. Clark", "Prof. Rodriguez", "Dr. Lewis"], 
+    "ArtificialIntelligence": ["Prof. Walker", "Dr. Hall", "Dr. Allen"]
+}
+days_per_course = {
+    "Securite": ["Sun", "Mon", "Tue", "Wed", "Thu"],
+    "MethodesFormelles": ["Sun", "Mon", "Tue", "Wed", "Thu"],
+    "NumericalAnalysis": ["Sun", "Mon", "Tue", "Wed", "Thu"],
+    "Entrepreneuriat": ["Sun", "Mon", "Tue", "Wed", "Thu"],
+    "RechercheOperationnelle2": ["Sun", "Mon", "Tue", "Wed", "Thu"],
+    "DistributedArchitecture": ["Sun", "Mon", "Tue", "Wed", "Thu"],
+    "Reseaux2": ["Sun", "Mon", "Tue", "Wed", "Thu"],
+    "ArtificialIntelligence": ["Sun", "Mon", "Tue", "Wed", "Thu"]
 }
 
-# Create problem instance
-problem = Problem()
+solution = generate_timetable(default_courses, default_teacher_names, days_per_course)
 
-# Add variables to the problem
-for var, domain in variables.items():
-    problem.addVariable(var, domain)
-
-# Define constraints
-def not_same_day(a, b):
-    return a[0] != b[0]
-
-def not_same_time(a, b):
-    return a != b
-
-def all_different(*args):
-    return len(args) == len(set(args))
-
-# Add constraints to the problem
-problem.addConstraint(AllDifferentConstraint(), list(variables.keys()))
-
-# Add function constraints for not having lectures and TDs on the same day
-problem.addConstraint(FunctionConstraint(not_same_day), ('Sécurité_lecture', 'Sécurité_td'))
-problem.addConstraint(FunctionConstraint(not_same_day), ('Méthodes_formelles_lecture', 'Méthodes_formelles_td'))
-problem.addConstraint(FunctionConstraint(not_same_day), ('Analyse_numérique_lecture', 'Analyse_numérique_td'))
-problem.addConstraint(FunctionConstraint(not_same_day), ('Recherche_opérationnelle_2_lecture', 'Recherche_opérationnelle_2_td'))
-problem.addConstraint(FunctionConstraint(not_same_day), ('Distributed_Architecture_Intensive_Computing_lecture', 'Distributed_Architecture_Intensive_Computing_td'))
-problem.addConstraint(FunctionConstraint(not_same_day), ('Réseaux_2_lecture', 'Réseaux_2_td'))
-problem.addConstraint(FunctionConstraint(not_same_day), ('Artificial_Intelligence_lecture', 'Artificial_Intelligence_td'))
-
-# Solve the problem
-solution = problem.getSolution()
-
-# Print the solution
-print("Solution:")
-print(solution)
+if solution:
+    print("Generated Timetable:")
+    timetable_data = []
+    for var, slot in solution.items():
+        course, class_type = var.split('_')
+        teachers = ", ".join(default_teacher_names[course])
+        timetable_data.append((course, class_type, slot, teachers))
+    
+    df = pd.DataFrame(timetable_data, columns=["Course", "Class Type", "Time Slot", "Teachers"])
+    print(df)
+else:
+    print("No solution found")
